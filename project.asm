@@ -1,103 +1,82 @@
-; autor: Rafał Małycha
+;licznik 0-9 7seg
+;atmega32a zl3avr
+;timer1 przerwania
+;rafal
 
 .include "m32def.inc"
-.cseg
+
+.def t=r16
+.def d=r17
+
 .org 0x0000
-rjmp start
+rjmp RESET
 
-.org 0x0020
-przerwanie_timer0:
-    inc cyfra
-    cpi cyfra,10
-    brlo koniec
-    ldi cyfra,0
-koniec:
-    rjmp RETI
-RETI: reti
+.org TIMER1_COMPAaddr
+rjmp T1_ISR
 
-start:
-    ; stos
-    ldi r16,HIGH(RAMEND)
-    out SPH,r16
-    ldi r16,LOW(RAMEND)
-    out SPL,r16
+RESET:
+ldi t,HIGH(RAMEND)
+out SPH,t
+ldi t,LOW(RAMEND)
+out SPL,t
 
-    ; DDRD - segmenty
-    ldi r16,0xFF
-    out DDRD,r16
-    ldi r16,0
-    out PORTD,r16
+;portb segmety
+ldi t,255
+out DDRB,t
 
-    ; Timer0 CTC, prescaler 256
-    ldi r16,0b00001100
-    out TCCR0,TCCR0_CS02+TCCR0_WGM01
-    ldi r16,61
-    out OCR0,r16
-    ldi r16,(1<<OCIE0)
-    out TIMSK,r16
-    sei
+;start 0
+ldi d,0
+rcall DISP
 
-    ldi cyfra,0
+;timer1 ctc
+ldi t,HIGH(976)
+out OCR1AH,t
+ldi t,LOW(976)
+out OCR1AL,t
 
-glowna_petla:
-    rcall wyswietl
-    rjmp glowna_petla
+;ctc
+ldi t,(1<<WGM12)
+out TCCR1B,t
 
-wyswietl:
-    ldi r16,0
-    out PORTD,r16
-    mov r17,cyfra
-    cpi r17,0
-    breq zero
-    cpi r17,1
-    breq jeden
-    cpi r17,2
-    breq dwa
-    cpi r17,3
-    breq trzy
-    cpi r17,4
-    breq cztery
-    cpi r17,5
-    breq piec
-    cpi r17,6
-    breq szesc
-    cpi r17,7
-    breq siedem
-    cpi r17,8
-    breq osiem
-    cpi r17,9
-    breq dziewiec
-    ret
+;presk 1024
+ori t,(1<<CS12)|(1<<CS10)
+out TCCR1B,t
 
-zero:  ldi r16,0b00111111
-       out PORTD,r16
-       ret
-jeden: ldi r16,0b00000110
-       out PORTD,r16
-       ret
-dwa:   ldi r16,0b01011011
-       out PORTD,r16
-       ret
-trzy:  ldi r16,0b01001111
-       out PORTD,r16
-       ret
-cztery:ldi r16,0b01100110
-       out PORTD,r16
-       ret
-piec:  ldi r16,0b01101101
-       out PORTD,r16
-       ret
-szesc: ldi r16,0b01111101
-       out PORTD,r16
-       ret
-siedem:ldi r16,0b00000111
-       out PORTD,r16
-       ret
-osiem: ldi r16,0b01111111
-       out PORTD,r16
-       ret
-dziewiec:ldi r16,0b01101111
-         out PORTD,r16
-         ret
+;irq
+ldi t,(1<<OCIE1A)
+out TIMSK,t
+sei
 
-.def cyfra = r18
+LOOP:
+rjmp LOOP
+
+T1_ISR:
+inc d
+cpi d,10
+brlo OK
+ldi d,0
+OK:
+rcall DISP
+reti
+
+DISP:
+ldi ZH,HIGH(TAB<<1)
+ldi ZL,LOW(TAB<<1)
+add ZL,d
+adc ZH,__zero_reg__
+lpm t,Z
+out PORTB,t
+ret
+
+;katoda wspulna
+TAB:
+.db 0b00111111
+.db 0b00000110
+.db 0b01011011
+.db 0b01001111
+.db 0b01100110
+.db 0b01101101
+.db 0b01111101
+.db 0b00000111
+.db 0b01111111
+.db 0b01101111
