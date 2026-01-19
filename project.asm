@@ -1,55 +1,71 @@
-;licznik 0-9 7seg
-;atmega32a zl3avr
-;timer1 przerwania
-;rafal
+;--------------------------------------------------------
+; Counter 0–9 on 7-segment display
+; Microcontroller: ATmega32A
+; Board: ZL3AVR
+; Timer1 in CTC mode with interrupt
+; Author: Rafal Małycha 3BT 
+;--------------------------------------------------------
 
 .include "m32def.inc"
 
+;--------------------------------------------------------
+; Register definitions
+;--------------------------------------------------------
 .def t=r16
 .def d=r17
 
+;--------------------------------------------------------
+; Interrupt vector table
+;--------------------------------------------------------
 .org 0x0000
 rjmp RESET
 
 .org TIMER1_COMPAaddr
 rjmp T1_ISR
 
+;--------------------------------------------------------
+; Reset routine – initialization
+;--------------------------------------------------------
 RESET:
 ldi t,HIGH(RAMEND)
 out SPH,t
 ldi t,LOW(RAMEND)
 out SPL,t
 
-;portb segmety
-ldi t,255
+ldi t,0xFF
 out DDRB,t
 
-;start 0
 ldi d,0
 rcall DISP
 
-;timer1 ctc
+;--------------------------------------------------------
+; Timer1 configuration – CTC mode
+;--------------------------------------------------------
 ldi t,HIGH(976)
 out OCR1AH,t
 ldi t,LOW(976)
 out OCR1AL,t
 
-;ctc
 ldi t,(1<<WGM12)
 out TCCR1B,t
 
-;presk 1024
 ori t,(1<<CS12)|(1<<CS10)
 out TCCR1B,t
 
-;irq
 ldi t,(1<<OCIE1A)
 out TIMSK,t
+
 sei
 
+;--------------------------------------------------------
+; Main loop
+;--------------------------------------------------------
 LOOP:
 rjmp LOOP
 
+;--------------------------------------------------------
+; Timer1 Compare Match A Interrupt Service Routine
+;--------------------------------------------------------
 T1_ISR:
 inc d
 cpi d,10
@@ -59,6 +75,9 @@ OK:
 rcall DISP
 reti
 
+;--------------------------------------------------------
+; Display routine
+;--------------------------------------------------------
 DISP:
 ldi ZH,HIGH(TAB<<1)
 ldi ZL,LOW(TAB<<1)
@@ -68,15 +87,18 @@ lpm t,Z
 out PORTB,t
 ret
 
-;katoda wspulna
+;--------------------------------------------------------
+; 7-segment display lookup table (common cathode)
+; Bit order:
+;--------------------------------------------------------
 TAB:
-.db 0b00111111
-.db 0b00000110
-.db 0b01011011
-.db 0b01001111
-.db 0b01100110
-.db 0b01101101
-.db 0b01111101
-.db 0b00000111
-.db 0b01111111
-.db 0b01101111
+.db 0b00111111 ; 0
+.db 0b00000110 ; 1
+.db 0b01011011 ; 2
+.db 0b01001111 ; 3
+.db 0b01100110 ; 4
+.db 0b01101101 ; 5
+.db 0b01111101 ; 6
+.db 0b00000111 ; 7
+.db 0b01111111 ; 8
+.db 0b01101111 ; 9
